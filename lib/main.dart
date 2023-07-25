@@ -1,12 +1,25 @@
-import 'package:design/pages/homepage.dart';
+import 'package:design/data/product_cubit.dart';
+import 'package:design/repo/product_repository.dart';
+import 'package:design/root.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-void main() {
-  runApp(const MyApp());
+import 'di/locator.dart';
+
+Future<void> main() async {
+  await setupDI();
+
+  runApp(MultiBlocProvider(providers: [
+    BlocProvider(
+      create: (context) => ProductCubit(
+        getIt<ProductRepository>(),
+      ),
+    )
+  ], child: const MainApp()));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MainApp extends StatelessWidget {
+  const MainApp({super.key});
 
   // This widget is the root of your application.
   @override
@@ -17,7 +30,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const HomePage(),
+      home: const RootPage(),
     );
   }
 }
