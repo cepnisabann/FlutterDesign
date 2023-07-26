@@ -18,7 +18,16 @@ class _RootPageState extends State<RootPage> {
     return Scaffold(
       body: IndexedStack(
         index: currentIndex,
-        children: const [HomePage(), StorePage()],
+        children: [
+          const HomePage(),
+          const StorePage(),
+          Container(
+            color: Colors.amber,
+          ),
+          Container(
+            color: Colors.red,
+          )
+        ],
       ),
       bottomNavigationBar: BottomNavigationBar(
           currentIndex: currentIndex,

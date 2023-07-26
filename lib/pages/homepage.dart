@@ -1,72 +1,30 @@
 // ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables, avoid_print
-
-import 'dart:math';
 import 'package:carousel_indicator/carousel_indicator.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:design/data/product_cubit.dart';
-import 'package:design/pages/storepage.dart';
+import 'package:design/base/base_widget.dart';
+import 'package:design/pages/viewmodels/homepage_vm.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_phosphor_icons/flutter_phosphor_icons.dart';
-import 'package:intl/intl.dart';
 import '../model/product.dart';
+
 import 'package:flutter_svg/flutter_svg.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({Key? key}) : super(key: key);
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
-int selectedButtonIndex = 0;
-bool isLoading = false;
-List<int> imageindex = List<int>.filled(30, 0);
-// List<Product> productList = []; // Create an empty list of Product objects
-// Products products = [] as Products;
-final currentType = NumberFormat("#,##0.00", "tr_TR");
-
-// Future<Products> fetchProduct(int productId) async {
-//   var restClient = getIt<RestClient>();
-
-//   var products = await restClient.getProduct(30);
-//   productList = products.products!; // Assign the list of products
-//   isLoading = false;
-//   return restClient.getProduct(productId);
-// }
-
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends BaseState<HomeViewModel, HomePage> {
   @override
   void initState() {
-    context.read<ProductCubit>().getCategories(0);
+    viewModel.getProduct(0);
     super.initState();
-    // fetchProduct(30).then(
-    //   (value) {
-    //     products = value;
-    //     setState(() {});
-    //   },
-    // );
   }
-
-  List<int> myList = [
-    Random().nextInt(30),
-    Random().nextInt(30),
-    Random().nextInt(30)
-  ];
-  int currentSliderPage = 1;
-  final TextEditingController _textFieldController = TextEditingController();
-  final PageController _newspageController = PageController();
-  final PageController _storepageController = PageController();
-  final PageController _storepageminiController = PageController();
-
-  final List<Color> colorList = [Colors.red, Colors.yellow, Colors.green];
 
   @override
   Widget build(BuildContext context) {
-    var height = MediaQuery.of(context).size.height;
-    // ignore: unused_local_variable
-    var width = MediaQuery.of(context).size.width;
-
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: MediaQuery.of(context).size.height * 0.12,
@@ -75,7 +33,7 @@ class _HomePageState extends State<HomePage> {
           padding: const EdgeInsets.only(left: 40, top: 14),
           child: SvgPicture.asset(
             'assets/logo.svg',
-            width: width * 0.35,
+            width: MediaQuery.of(context).size.width * 0.35,
             colorFilter: ColorFilter.mode(
               Colors.orange.shade800,
               BlendMode.srcIn,
@@ -94,23 +52,24 @@ class _HomePageState extends State<HomePage> {
           },
         ),
         bottom: PreferredSize(
-          preferredSize: Size.fromHeight((height * 0.09) + 15),
+          preferredSize:
+              Size.fromHeight((MediaQuery.of(context).size.height * 0.09) + 15),
           child: Padding(
             padding: const EdgeInsets.only(left: 15, right: 15, bottom: 15),
             child: SizedBox(
-              height: (height * 0.05) + 16,
+              height: (MediaQuery.of(context).size.height * 0.05) + 16,
               child: TextField(
-                controller: _textFieldController,
+                controller: viewModel.textFieldController,
                 textAlign: TextAlign.center,
                 decoration: InputDecoration(
-                  enabledBorder: OutlineInputBorder(
+                  enabledBorder: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.zero),
                     borderSide: BorderSide(
                       color: Colors.grey,
                       width: 0.5,
                     ),
                   ),
-                  disabledBorder: OutlineInputBorder(
+                  disabledBorder: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.zero),
                     borderSide: BorderSide(
                       color: Colors.grey,
@@ -119,11 +78,12 @@ class _HomePageState extends State<HomePage> {
                   ),
                   hintText: 'Ürün, kategori veya marka ara...',
                   prefixIcon: IconButton(
-                    onPressed: () => doSearch(_textFieldController.text),
+                    onPressed: () =>
+                        viewModel.doSearch(viewModel.textFieldController.text),
                     icon: const Icon(PhosphorIcons.magnifying_glass_light),
                   ),
                   suffixIcon: const Icon(PhosphorIcons.barcode_light),
-                  contentPadding: EdgeInsets.symmetric(
+                  contentPadding: const EdgeInsets.symmetric(
                       vertical: 8.0), // Adjust vertical alignment
                 ),
               ),
@@ -131,47 +91,29 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-      body: BlocConsumer<ProductCubit, ProductState>(
-        listener: (context, state) {
-          if (state is ProductError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-              ),
-            );
-          }
-        },
-        builder: (context, state) {
-          if (state is CategoryLoading) {
-            return buildLoading();
-          } else if (state is CategoryLoaded) {
-            return buildView(state.products);
-          } else {
-            return buildInitialInput(context);
-          }
-        },
+      body: SafeArea(
+        child: viewModel.isLoading
+            ? buildLoading()
+            : viewModel.hasError
+                ? buildError(viewModel)
+                : buildView(viewModel.products, context, viewModel),
       ),
     );
   }
 
-  void doSearch(String text) {
-    print('Search text: $text');
-    // Perform your search operation or any other logic here
-  }
-
-  Widget buildInitialInput(BuildContext context) {
+  Widget buildError(HomeViewModel viewModel) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Press the button to fetch data',
+            viewModel.errorMessage,
             style: TextStyle(fontSize: 24),
           ),
           SizedBox(height: 24),
           ElevatedButton(
             onPressed: () async {
-              await context.read<ProductCubit>().getProduct(30);
+              await viewModel.getProduct(30);
             },
             child: Text('Fetch data'),
           ),
@@ -186,26 +128,25 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget buildView(List<Product> products) {
+  Widget buildView(
+      List<Product> products, BuildContext contextm, HomeViewModel viewModel) {
     return SingleChildScrollView(
       child: Column(
         children: [
           SizedBox(
-              height: MediaQuery.of(context).size.height * 0.1,
+              height: MediaQuery.of(contextm).size.height * 0.1,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   Container(
                     decoration: BoxDecoration(
-                        color: selectedButtonIndex == 0
+                        color: viewModel.selectedButtonIndex == 0
                             ? Colors.white
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(5)),
                     child: TextButton(
                       onPressed: () {
-                        setState(() {
-                          selectedButtonIndex = 0;
-                        });
+                        viewModel.selectButton(0);
                       },
                       child: Row(
                         children: [
@@ -214,7 +155,7 @@ class _HomePageState extends State<HomePage> {
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
-                              color: selectedButtonIndex == 0
+                              color: viewModel.selectedButtonIndex == 0
                                   ? Colors.orange.shade800
                                   : Colors.black,
                             ),
@@ -225,22 +166,20 @@ class _HomePageState extends State<HomePage> {
                   ),
                   Container(
                     decoration: BoxDecoration(
-                        color: selectedButtonIndex == 1
+                        color: viewModel.selectedButtonIndex == 1
                             ? Colors.white
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(5)),
                     child: TextButton(
                       onPressed: () {
-                        setState(() {
-                          selectedButtonIndex = 1;
-                        });
+                        viewModel.selectButton(1);
                       },
                       child: Text(
                         "Kampanyalar",
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: selectedButtonIndex == 1
+                          color: viewModel.selectedButtonIndex == 1
                               ? Colors.orange.shade800
                               : Colors.black,
                         ),
@@ -249,22 +188,20 @@ class _HomePageState extends State<HomePage> {
                   ),
                   Container(
                     decoration: BoxDecoration(
-                        color: selectedButtonIndex == 2
+                        color: viewModel.selectedButtonIndex == 2
                             ? Colors.white
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(5)),
                     child: TextButton(
                       onPressed: () {
-                        setState(() {
-                          selectedButtonIndex = 2;
-                        });
+                        viewModel.selectButton(2);
                       },
                       child: Text(
                         "Ayrıcalıklar",
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: selectedButtonIndex == 2
+                          color: viewModel.selectedButtonIndex == 2
                               ? Colors.orange.shade800
                               : Colors.black,
                         ),
@@ -274,16 +211,14 @@ class _HomePageState extends State<HomePage> {
                 ],
               )),
           SizedBox(
-            height: MediaQuery.of(context).size.height * 0.37,
+            height: MediaQuery.of(contextm).size.height * 0.37,
             child: Stack(
               children: [
                 PageView.builder(
-                  controller: _newspageController,
+                  controller: viewModel.newspageController,
                   itemCount: 3,
                   onPageChanged: (index) {
-                    setState(() {
-                      currentSliderPage = index + 1;
-                    });
+                    viewModel.onSliderPageChanged(index);
                   },
                   itemBuilder: (context, index) {
                     return Padding(
@@ -299,8 +234,8 @@ class _HomePageState extends State<HomePage> {
                                 height:
                                     MediaQuery.of(context).size.height * 0.27,
                                 child: CachedNetworkImage(
-                                    imageUrl:
-                                        products[myList[index]].images![0])),
+                                    imageUrl: products[viewModel.myList[index]]
+                                        .images![0])),
                           ),
                           Padding(
                             padding: const EdgeInsets.all(8.0),
@@ -311,14 +246,14 @@ class _HomePageState extends State<HomePage> {
                                 children: [
                                   Text(
                                     maxLines: 1,
-                                    '${products[myList[index]].description}',
+                                    '${products[viewModel.myList[index]].description}',
                                     style: TextStyle(
                                       fontSize: 14,
                                       color: Colors.grey,
                                     ),
                                   ),
                                   Text(
-                                    '${products[myList[index]].title}',
+                                    '${products[viewModel.myList[index]].title}',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
@@ -349,7 +284,7 @@ class _HomePageState extends State<HomePage> {
                       padding: const EdgeInsets.only(
                           left: 12, right: 12, bottom: 5, top: 5),
                       child: Text(
-                        '  $currentSliderPage/3  ',
+                        '  ${viewModel.currentSliderPage}/3  ',
                         style: TextStyle(
                             color: Colors.black,
                             fontSize: 12,
@@ -406,12 +341,6 @@ class _HomePageState extends State<HomePage> {
                       padding: EdgeInsets.only(right: 16),
                       child: TextButton(
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => StorePage(),
-                            ),
-                          );
                           // Add your functionality here for the TextButton
                         },
                         child: Text(
@@ -431,7 +360,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           SizedBox(
-            height: MediaQuery.of(context).size.height * 0.3,
+            height: MediaQuery.of(contextm).size.height * 0.3,
             child: Container(
                 color: Colors.white38,
                 child: GridView.builder(
@@ -439,7 +368,7 @@ class _HomePageState extends State<HomePage> {
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 1,
                   ),
-                  controller: _storepageController,
+                  controller: viewModel.storepageController,
                   itemCount: products.length,
                   itemBuilder: (BuildContext context, int index) {
                     return Padding(
@@ -454,13 +383,13 @@ class _HomePageState extends State<HomePage> {
                               child: Stack(
                                 children: [
                                   PageView.builder(
-                                    controller: _storepageminiController,
+                                    controller:
+                                        viewModel.storepageminiController,
                                     scrollDirection: Axis.horizontal,
                                     clipBehavior: Clip.hardEdge,
                                     onPageChanged: (value) {
-                                      setState(() {
-                                        imageindex[index] = value;
-                                      });
+                                      viewModel.onImagePageChanged(
+                                          index, value);
                                     },
                                     itemCount: products[index].images!.length,
                                     itemBuilder: (context, index2) {
@@ -473,13 +402,8 @@ class _HomePageState extends State<HomePage> {
                                     right: 8,
                                     child: GestureDetector(
                                       onTap: () {
-                                        setState(() {
-                                          // Toggle the heart color when clicked
-                                          products[index]
-                                              .isLiked = !(products[index]
-                                                  .isLiked ??
-                                              false); // Check if isLiked is not null before toggling
-                                        });
+                                        viewModel.toggleLike(
+                                            index); // Check if isLiked is not null before toggling
                                       },
                                       child: Container(
                                         decoration: BoxDecoration(
@@ -494,13 +418,15 @@ class _HomePageState extends State<HomePage> {
                                         child: Padding(
                                           padding: const EdgeInsets.all(4),
                                           child: Icon(
-                                            products[index].isLiked ?? false
+                                            viewModel.products[index].isLiked ??
+                                                    false
                                                 ? PhosphorIcons.heart_fill
                                                 : PhosphorIcons.heart_light,
-                                            color:
-                                                products[index].isLiked ?? false
-                                                    ? Colors.red
-                                                    : Colors.grey,
+                                            color: viewModel.products[index]
+                                                        .isLiked ??
+                                                    false
+                                                ? Colors.red
+                                                : Colors.grey,
                                           ),
                                         ),
                                       ),
@@ -523,7 +449,7 @@ class _HomePageState extends State<HomePage> {
                                           Icon(PhosphorIcons.star_fill,
                                               color: Colors.orange, size: 10),
                                           Text(
-                                              "${products[index].rating ?? ''} (${Random().nextInt(1000)})",
+                                              "${products[index].rating ?? ''} (${products[index].rating! * products[index].price! ~/ 3})",
                                               style: TextStyle(
                                                 fontSize: 10,
                                                 color: Colors.black,
@@ -535,7 +461,7 @@ class _HomePageState extends State<HomePage> {
                                       width: 6,
                                       color: Colors.grey,
                                       count: products[index].images!.length,
-                                      index: imageindex[index],
+                                      index: viewModel.imageindex[index],
                                       activeColor: Colors.black,
                                     ),
                                   ],
@@ -582,7 +508,7 @@ class _HomePageState extends State<HomePage> {
                                         child: Column(
                                           children: [
                                             Text(
-                                              "${currentType.format(products[index].price! + 150)} TL",
+                                              "${viewModel.formatPrice(products[index].price! + 150)} TL",
                                               style: TextStyle(
                                                 fontSize: 14,
                                                 color: Colors.grey,
@@ -593,7 +519,7 @@ class _HomePageState extends State<HomePage> {
                                               ),
                                             ),
                                             Text(
-                                              "${currentType.format(products[index].price!)} TL",
+                                              "${viewModel.formatPrice(products[index].price!)} TL",
                                               style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 14,
@@ -615,29 +541,8 @@ class _HomePageState extends State<HomePage> {
                   },
                 )),
           ),
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.3,
-            child: PageView.builder(
-              controller:
-                  _storepageController, // Provide a PageController if needed
-              itemCount: 10, // Number of items/pages
-              onPageChanged: (int index) {
-                // Handle page change event
-              },
-              itemBuilder: (BuildContext context, int index) {
-                return Container(
-                  color: Colors.red,
-                  // Build your widget for each page
-                  // Customize it based on the current index or data
-                );
-              },
-            ),
-          )
         ],
       ),
     );
   }
 }
-/*
-
-*/

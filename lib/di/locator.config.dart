@@ -9,7 +9,9 @@
 // coverage:ignore-file
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'package:design/di/module.dart' as _i6;
+import 'package:design/di/module.dart' as _i8;
+import 'package:design/pages/viewmodels/homepage_vm.dart' as _i7;
+import 'package:design/pages/viewmodels/storepage_vm.dart' as _i6;
 import 'package:design/repo/product_repository.dart' as _i5;
 import 'package:design/service/rest_client.dart' as _i4;
 import 'package:dio/dio.dart' as _i3;
@@ -32,8 +34,12 @@ extension GetItInjectableX on _i1.GetIt {
     gh.singleton<_i4.RestClient>(appModule.restClient);
     gh.singleton<_i5.ProductRepository>(
         _i5.ProductRepositoryImpl(gh<_i4.RestClient>()));
+    gh.factory<_i6.StorePageViewModel>(
+        () => _i6.StorePageViewModel(gh<_i5.ProductRepository>()));
+    gh.factory<_i7.HomeViewModel>(
+        () => _i7.HomeViewModel(gh<_i5.ProductRepository>()));
     return this;
   }
 }
 
-class _$AppModule extends _i6.AppModule {}
+class _$AppModule extends _i8.AppModule {}

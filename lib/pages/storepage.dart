@@ -1,167 +1,65 @@
-// ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables, avoid_print, unused_local_variable, unused_import
+// ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables, avoid_print
 
-import 'dart:math';
 import 'package:carousel_indicator/carousel_indicator.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:design/base/base_widget.dart';
+import 'package:design/pages/viewmodels/storepage_vm.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_phosphor_icons/flutter_phosphor_icons.dart';
-import 'package:injectable/injectable.dart';
-import 'package:intl/intl.dart';
-import '../data/product_cubit.dart';
 import '../model/product.dart';
 
 class StorePage extends StatefulWidget {
-  const StorePage({super.key});
+  const StorePage({Key? key}) : super(key: key);
 
   @override
   State<StorePage> createState() => _StorePageState();
 }
 
-int selectedCategoryIndex = 0;
-var height = 0.0;
-var width = 0.0;
-final ScrollController _storepageController = PageController();
-final PageController _storepageminiController = PageController();
-int scrollLength = 0;
-int selectedButtonIndex = 0;
-bool isFetchingData = false;
-bool isLoading = false;
-List<int> imageindex = List<int>.filled(30, 0);
-List<Product> categoryProducts = [];
-List<Product> sortedList = [];
-List<Product> shownList = [];
-List<Product> productList = []; // Create an empty list of Product objects
-// Products products = [] as Products;
-final currentType = NumberFormat("#,##0.00", "tr_TR");
-List<String> categories = [];
-// Future<Products> fetchProduct(int productId) async {
-//   var restClient = getIt<RestClient>();
-//   var fetchedProducts = await restClient.getProduct(productId);
-//   var newProducts = fetchedProducts.products!;
-
-//   if (productId > 20) {
-//     productList.addAll(newProducts);
-//     imageindex = List<int>.filled(30 + productId, 0);
-//   } else {
-//     categories = await restClient.getCategories();
-//     productList = newProducts;
-//     shownList = productList;
-//   }
-
-//   isLoading = false;
-//   return fetchedProducts;
-// }
-
-// Future<Products> fetchCategoryProduct(String categoryname) async {
-//   var restClient = getIt<RestClient>();
-//   var fetchedCategoryProducts =
-//       await restClient.getCategoryProduct(categoryname);
-//   var newcategoryProducts = fetchedCategoryProducts.products!;
-//   categoryProducts = newcategoryProducts;
-
-//   return fetchedCategoryProducts;
-// }
-
-class _StorePageState extends State<StorePage> {
-  // Future<void> _refreshGridView() async {
-  //   if (isFetchingData) return; // Prevent multiple simultaneous refresh calls
-  //   try {
-  //     setState(() {
-  //       isFetchingData =
-  //           true; // Set the flag to indicate that data is being fetched
-  //     });
-  //     // Fetch new data from the API
-  //     var newProducts = await fetchProduct(scrollLength + shownList.length);
-  //     // Add the new products to the existing productList
-  //     shownList.addAll(newProducts.products!);
-  //   } catch (e) {
-  //     print('Error fetching new data: $e');
-  //   } finally {
-  //     setState(() {
-  //       isFetchingData = false; // Reset the flag after fetching is complete
-  //     });
-  //   }
-  // }
-
-  // void _onScroll() {
-  //   if (_storepageController.position.pixels ==
-  //       _storepageController.position.maxScrollExtent) {
-  //     scrollLength += 30;
-  //     // Call _refreshGridView to update the productList
-  //     _refreshGridView().then((_) {
-  //       setState(() {}); // Force a rebuild to show the new products
-  //     });
-  //     print("${productList.length}");
-  //   }
-  // }
-
+class _StorePageState extends BaseState<StorePageViewModel, StorePage> {
+  final ScrollController storepageController = PageController();
+  final PageController storepageminiController = PageController();
   @override
   void initState() {
-    context.read<ProductCubit>().getCategories(0);
+    viewModel.getProduct(0);
+    viewModel.getCategories();
+    // viewModel scroll listener
+    storepageController.addListener(() {
+      if (storepageController.position.pixels ==
+          storepageController.position.maxScrollExtent) {
+        viewModel.onScroll();
+      }
+    });
     super.initState();
-
-    scrollLength = 0;
-    // fetchProduct(scrollLength).then((value) {
-    //   products = value;
-    //   setState(() {
-    //     if (scrollLength == 0) {
-    //       categories.insert(0, "Tümü");
-    //     }
-    //     isLoading = false;
-    //   });
-    // });
-
-    // _storepageController.addListener(_onScroll);
   }
 
-  bool isSortedUp = false;
-
-  final List<Color> colorList = [Colors.red, Colors.yellow, Colors.green];
   @override
   Widget build(BuildContext context) {
-    height = MediaQuery.of(context).size.height;
-    width = MediaQuery.of(context).size.width;
-
-    return BlocConsumer<ProductCubit, ProductState>(
-      listener: (context, state) {
-        if (state is ProductError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
-            ),
-          );
-        }
-      },
-      builder: (context, state) {
-        if (state is CategoryLoading) {
-          return buildLoading();
-        } else if (state is CategoryLoaded) {
-          shownList = state.products;
-          categories = state.categories;
-          return buildView(state.products, state.categories);
-        } else {
-          return buildInitialInput(context);
-        }
-      },
+    return Scaffold(
+      body: SafeArea(
+        child: viewModel.isLoading
+            ? buildLoading()
+            : viewModel.hasError
+                ? buildError(viewModel)
+                : buildView(viewModel.products, viewModel.categories, viewModel,
+                    context),
+      ),
     );
   }
 
-  Widget buildInitialInput(BuildContext context) {
+  Widget buildError(StorePageViewModel viewModel) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Press the button to fetch data',
+            viewModel.errorMessage,
             style: TextStyle(fontSize: 24),
           ),
           SizedBox(height: 24),
           ElevatedButton(
             onPressed: () async {
-              await context.read<ProductCubit>().getProduct(30);
-              await context.read<ProductCubit>().getCategories(30);
+              await viewModel.getProduct(30);
             },
             child: Text('Fetch data'),
           ),
@@ -176,16 +74,17 @@ class _StorePageState extends State<StorePage> {
     );
   }
 
-  Widget buildView(List<Product> products, List<String> categories) {
+  Widget buildView(List<Product> products, List<String> categories,
+      StorePageViewModel viewModel, BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        toolbarHeight: height * 0.11,
+        toolbarHeight: kToolbarHeight + kTextTabBarHeight,
         backgroundColor: Colors.orange.shade800,
         foregroundColor: Colors.transparent,
         elevation: 0,
-        title: Padding(
-          padding: const EdgeInsets.only(top: 20),
+        title: const Padding(
+          padding: EdgeInsets.only(top: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -211,19 +110,23 @@ class _StorePageState extends State<StorePage> {
         centerTitle: true,
         leading: Builder(
           builder: (BuildContext context) {
-            return IconButton(
-              icon: const Icon(
-                Icons.arrow_back,
-                color: Colors.white,
+            return Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: IconButton(
+                alignment: Alignment.bottomLeft,
+                icon: const Icon(
+                  PhosphorIcons.arrow_left_light,
+                  size: 30,
+                  color: Colors.white,
+                ),
+                onPressed: () {},
               ),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
             );
           },
         ),
         bottom: PreferredSize(
-          preferredSize: Size.fromHeight((height * 0.09) + 15),
+          preferredSize:
+              Size.fromHeight((MediaQuery.of(context).size.height * 0.09) + 15),
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -247,7 +150,7 @@ class _StorePageState extends State<StorePage> {
                       );
                     }).toList();
                   },
-                  child: Row(
+                  child: const Row(
                     children: [
                       Text("Filtrele "),
                       Icon(CupertinoIcons.slider_horizontal_3),
@@ -261,27 +164,17 @@ class _StorePageState extends State<StorePage> {
                 ),
                 TextButton(
                   onPressed: () {
-                    setState(() {
-                      isSortedUp = !isSortedUp;
-                      if (isSortedUp) {
-                        sortedList = List.from(productList);
-                        sortedList.sort(
-                            (a, b) => (a.price ?? 0).compareTo(b.price ?? 0));
-                        shownList = sortedList;
-                      } else {
-                        shownList = shownList.reversed.toList();
-                      }
-                    });
+                    viewModel.sortPrice();
                   },
                   child: Row(
                     children: [
-                      Text(
+                      const Text(
                         "Sırala ",
                         style: TextStyle(
                             color: Colors.black87, fontWeight: FontWeight.w400),
                       ),
                       Icon(
-                        isSortedUp
+                        viewModel.isSortedUp
                             ? CupertinoIcons.sort_up
                             : CupertinoIcons.sort_down,
                         color: Colors.black,
@@ -307,28 +200,15 @@ class _StorePageState extends State<StorePage> {
                 scrollDirection: Axis.horizontal,
                 itemCount: categories.length,
                 itemBuilder: (context, index) {
-                  final isSelected = index == selectedCategoryIndex;
+                  final isSelected = index == viewModel.selectedCategoryIndex;
 
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 3.0),
                     child: TextButton(
                       onPressed: () {
-                        if (index != 0) {
-                          // fetchCategoryProduct(categories[index]).then(
-                          //   (value) {
-                          //     shownList = categoryProducts;
-                          //     setState(() {
-                          //       selectedCategoryIndex = index;
-                          //       print("Clicked category: ${categories[index]}");
-                          //     });
-                          //   },
-                          // );
-                        } else {
-                          shownList = productList;
-                          setState(() {
-                            selectedCategoryIndex = index;
-                          });
-                        }
+                        viewModel.getCategoryProduct(categories[index]);
+
+                        viewModel.selectedCategoryIndex = index;
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
@@ -371,8 +251,8 @@ class _StorePageState extends State<StorePage> {
                   childAspectRatio: 0.65,
                   crossAxisCount: 2,
                 ),
-                controller: _storepageController,
-                itemCount: shownList.length,
+                controller: storepageController,
+                itemCount: viewModel.shownList.length,
                 itemBuilder: (BuildContext context, int index) {
                   return Container(
                     decoration: BoxDecoration(
@@ -394,19 +274,19 @@ class _StorePageState extends State<StorePage> {
                                 padding: const EdgeInsets.only(
                                     top: 5, left: 1, right: 1),
                                 child: PageView.builder(
-                                  controller: _storepageminiController,
+                                  controller: storepageminiController,
                                   scrollDirection: Axis.horizontal,
                                   clipBehavior: Clip.hardEdge,
                                   onPageChanged: (value) {
-                                    setState(() {
-                                      imageindex[index] = value;
-                                    });
+                                    viewModel.imageindex[index] = value;
+                                    viewModel.notifyListeners();
                                   },
-                                  itemCount: shownList[index].images!.length,
+                                  itemCount:
+                                      viewModel.shownList[index].images!.length,
                                   itemBuilder: (context, index2) {
                                     return CachedNetworkImage(
-                                        imageUrl:
-                                            shownList[index].images![index2]);
+                                        imageUrl: viewModel
+                                            .shownList[index].images![index2]);
                                   },
                                 ),
                               ),
@@ -415,13 +295,7 @@ class _StorePageState extends State<StorePage> {
                                 right: 8,
                                 child: GestureDetector(
                                   onTap: () {
-                                    setState(() {
-                                      // Toggle the heart color when clicked
-                                      shownList[index]
-                                          .isLiked = !(shownList[index]
-                                              .isLiked ??
-                                          false); // Check if isLiked is not null before toggling
-                                    });
+                                    viewModel.toggleLike(index);
                                   },
                                   child: Container(
                                     decoration: BoxDecoration(
@@ -436,10 +310,13 @@ class _StorePageState extends State<StorePage> {
                                     child: Padding(
                                       padding: const EdgeInsets.all(4),
                                       child: Icon(
-                                        shownList[index].isLiked ?? false
+                                        viewModel.shownList[index].isLiked ??
+                                                false
                                             ? PhosphorIcons.heart_fill
                                             : PhosphorIcons.heart_light,
-                                        color: shownList[index].isLiked ?? false
+                                        color: viewModel
+                                                    .shownList[index].isLiked ??
+                                                false
                                             ? Colors.red
                                             : Colors.grey,
                                       ),
@@ -466,7 +343,7 @@ class _StorePageState extends State<StorePage> {
                                       Icon(PhosphorIcons.star_fill,
                                           color: Colors.orange, size: 10),
                                       Text(
-                                          "${shownList[index].rating ?? ''} (${shownList[index].rating! * shownList[index].price! ~/ 3})",
+                                          "${viewModel.shownList[index].rating ?? ''} (${viewModel.shownList[index].rating! * viewModel.shownList[index].price! ~/ 3})",
                                           style: TextStyle(
                                             fontSize: 10,
                                             color: Colors.black,
@@ -479,8 +356,9 @@ class _StorePageState extends State<StorePage> {
                                   child: CarouselIndicator(
                                     width: 6,
                                     color: Colors.grey,
-                                    count: shownList[index].images!.length,
-                                    index: imageindex[index],
+                                    count: viewModel
+                                        .shownList[index].images!.length,
+                                    index: viewModel.imageindex[index],
                                     activeColor: Colors.black,
                                   ),
                                 ),
@@ -492,7 +370,7 @@ class _StorePageState extends State<StorePage> {
                               child: Align(
                                 alignment: Alignment.centerLeft,
                                 child: Text(
-                                  shownList[index].title ??
+                                  viewModel.shownList[index].title ??
                                       '', // Check if title is not null before displaying
                                   style: TextStyle(
                                     fontSize: 16,
@@ -514,7 +392,7 @@ class _StorePageState extends State<StorePage> {
                                       alignment: Alignment.center,
                                       color: Colors.red.shade800,
                                       child: Text(
-                                        "%${(100 - ((shownList[index].price!) / (shownList[index].price! + 150) * 100)).toStringAsFixed(0)}",
+                                        "%${(100 - ((viewModel.shownList[index].price!) / (viewModel.shownList[index].price! + 150) * 100)).toStringAsFixed(0)}",
                                         style: TextStyle(
                                           fontSize: 16,
                                           color: Colors.white,
@@ -531,7 +409,7 @@ class _StorePageState extends State<StorePage> {
                                             .start, // Align text to the start of the column
                                         children: [
                                           Text(
-                                            "${currentType.format(shownList[index].price! + 150)} TL",
+                                            "${viewModel.currentType.format(viewModel.shownList[index].price! + 150)} TL",
                                             style: TextStyle(
                                               fontSize: 12,
                                               color: Colors.grey,
@@ -542,7 +420,7 @@ class _StorePageState extends State<StorePage> {
                                             ),
                                           ),
                                           Text(
-                                            "${currentType.format(shownList[index].price!)} TL",
+                                            "${viewModel.currentType.format(viewModel.shownList[index].price!)} TL",
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 14,
@@ -570,10 +448,3 @@ class _StorePageState extends State<StorePage> {
     );
   }
 }
-/*
-
-      ),
-    );
-  }
-}
-*/

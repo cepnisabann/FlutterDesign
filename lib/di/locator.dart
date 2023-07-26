@@ -6,4 +6,6 @@ import 'locator.config.dart';
 GetIt getIt = GetIt.instance;
 
 @InjectableInit(preferRelativeImports: false)
-setupDI() => getIt.init();
+setupDI() {
+  getIt.init();
+}
